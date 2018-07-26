@@ -45,29 +45,40 @@ def convert_to_local_tz(datetime_obj, datetime_tz_offset):
     return datetime_obj - datetime_tz_offset + local_tz_offset
 
 
-def get_tz_offsets(cache={}):
+primed = False
 
-    def get_offset(tz_obj, regex, repl='', replw=''):
-        key = (tz_obj, regex, repl, replw)
-        if key not in cache:
-            cache[key] = (
+
+def get_tz_offsets(cache=[]):
+    global primed
+
+    if primed:
+        for x in cache:
+            yield x
+
+    if not primed:
+
+        def get_offset(tz_obj, regex, repl='', replw=''):
+            return (
                 tz_obj[0],
                 {
                     'regex': re.compile(re.sub(repl, replw, regex % tz_obj[0]), re.IGNORECASE),
                     'offset': timedelta(seconds=tz_obj[1])
                 }
             )
-        return cache[key]
 
-    for tz_info in timezone_info_list:
-        for regex in tz_info['regex_patterns']:
-            for tz_obj in tz_info['timezones']:
-                yield get_offset(tz_obj, regex)
-
-            # alternate patterns
-            for replace, replacewith in tz_info.get('replace', []):
+        for tz_info in timezone_info_list:
+            for regex in tz_info['regex_patterns']:
                 for tz_obj in tz_info['timezones']:
-                    yield get_offset(tz_obj, regex, repl=replace, replw=replacewith)
+                    cache.append(get_offset(tz_obj, regex))
+                    yield cache[-1]
+
+                # alternate patterns
+                for replace, replacewith in tz_info.get('replace', []):
+                    for tz_obj in tz_info['timezones']:
+                        cache.append(get_offset(tz_obj, regex, repl=replace, replw=replacewith))
+                        yield cache[-1]
+
+        primed = True
 
 
 def get_local_tz_offset():
