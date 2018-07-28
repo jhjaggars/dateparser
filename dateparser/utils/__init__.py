@@ -8,7 +8,7 @@ from tzlocal import get_localzone
 from pytz import UTC, timezone, UnknownTimeZoneError
 from collections import OrderedDict
 
-from dateparser.timezone_parser import _tz_offsets, _compile, StaticTzInfo
+from dateparser.timezone_parser import get_tz_offsets, StaticTzInfo
 
 
 def strip_braces(date_string):
@@ -76,8 +76,8 @@ def localize_timezone(date_time, tz_string):
     try:
         tz = timezone(tz_string)
     except UnknownTimeZoneError as e:
-        for name, info in _tz_offsets:
-            regex = _compile(info['regex'])
+        for name, info in get_tz_offsets():
+            regex = info['regex']
             if regex.search(' %s' % tz_string):
                 tz = StaticTzInfo(name, info['offset'])
                 break
@@ -97,8 +97,8 @@ def apply_tzdatabase_timezone(date_time, pytz_string):
 
 
 def apply_dateparser_timezone(utc_datetime, offset_or_timezone_abb):
-    for name, info in _tz_offsets:
-        regex = _compile(info['regex'])
+    for name, info in get_tz_offsets():
+        regex = info['regex']
         if regex.search(' %s' % offset_or_timezone_abb):
             tz = StaticTzInfo(name, info['offset'])
             return utc_datetime.astimezone(tz)

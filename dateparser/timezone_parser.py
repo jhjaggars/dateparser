@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import regex as re
 from datetime import datetime, timedelta, tzinfo
-
 from .timezones import timezone_info_list
 
 
@@ -30,8 +29,8 @@ class StaticTzInfo(tzinfo):
 
 
 def pop_tz_offset_from_string(date_string, as_offset=True):
-    for name, info in _tz_offsets:
-        timezone_re = _compile(info['regex'])
+    for name, info in get_tz_offsets():
+        timezone_re = info['regex']
         timezone_match = timezone_re.search(date_string)
         if timezone_match:
             start, stop = timezone_match.span()
@@ -45,7 +44,13 @@ def convert_to_local_tz(datetime_obj, datetime_tz_offset):
     return datetime_obj - datetime_tz_offset + local_tz_offset
 
 
-def get_tz_offsets():
+def get_local_tz_offset():
+    offset = datetime.now() - datetime.utcnow()
+    offset = timedelta(days=offset.days, seconds=round(offset.seconds, -1))
+    return offset
+
+
+def build_tz_offsets():
 
     def get_offset(tz_obj, regex, repl='', replw=''):
         return (
@@ -67,17 +72,17 @@ def get_tz_offsets():
                     yield get_offset(tz_obj, regex, repl=replace, replw=replacewith)
 
 
-def get_local_tz_offset():
-    offset = datetime.now() - datetime.utcnow()
-    offset = timedelta(days=offset.days, seconds=round(offset.seconds, -1))
-    return offset
+_tz_offsets = list(build_tz_offsets())
 
 
-_tz_offsets = list(get_tz_offsets())
+def get_tz_offsets(cache=[]):
+    for name, o in cache:
+        yield name, o
+
+    for name, o in _tz_offsets[len(cache):]:
+        o["regex"] = re.compile(o["regex"], re.IGNORECASE)
+        cache.append((name, o))
+        yield name, o
+
+
 local_tz_offset = get_local_tz_offset()
-
-
-def _compile(pat, cache={}):
-    if pat not in cache:
-        cache[pat] = re.compile(pat, re.IGNORECASE)
-    return cache[pat]
